@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ja">
-<head><script>window.SessionUI=(()=>{
+<head><link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic&display=swap" rel="stylesheet"><script>window.SessionUI=(()=>{
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const icon=p=>p.icon||(window.GameArt?GameArt.person(p.seat??p.id):'');
  const rows=players=>players.map(p=>`<button type="button" class="session-seat" data-seat="${esc(p.id)}" ${p.disabled?'disabled':''}><span class="session-face">${icon(p)}</span><span class="session-seat-copy"><b>${esc(p.name)}</b><small>${esc(p.status||(p.done?'確認済み':'タップして確認'))}</small></span><span class="session-chevron" aria-hidden="true">${p.done?'✓':'›'}</span></button>`).join('');
@@ -50,35 +50,21 @@
 </script>
 <script>/* Short material sounds. No melodic fanfares; all effects decay within 450 ms. */
 window.TableSound=(()=>{
- const P={"hit": 420, "rub": 3400, "note": 640};
- let ac=null,lastTap=-1;const voices=new Set(),guards=[];
+ const P=[340, 0.1, 0.13];let ac=null,last=-1;const voices=new Set();
  function context(){try{if(!ac){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;ac=new C()}if(ac.state==='suspended')ac.resume().catch(()=>{});return ac}catch{return null}}
- function track(node,g){voices.add(node);node.onended=()=>{voices.delete(node);node.disconnect();g.disconnect()}}
- function stop(){for(const node of voices)try{node.stop()}catch{}voices.clear()}
- function modal(f,d,v,at=0){const c=context();if(!c)return;const t=c.currentTime+at;[[1,1],[2.76,.2],[4.8,.055]].forEach(([ratio,amp])=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f*ratio;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,v*amp),t+.003);g.gain.exponentialRampToValueAtTime(.0001,t+d/Math.sqrt(ratio));o.connect(g);g.connect(c.destination);track(o,g);o.start(t);o.stop(t+d+.01)})}
- function friction(d,f,v,at=0){const c=context();if(!c)return;const t=c.currentTime+at,len=Math.ceil(c.sampleRate*d),b=c.createBuffer(1,len,c.sampleRate),data=b.getChannelData(0);let previous=0;for(let i=0;i<len;i++){previous=.65*previous+.35*(Math.random()*2-1);data[i]=previous*Math.sin(Math.PI*i/len)**1.4}const src=c.createBufferSource(),filter=c.createBiquadFilter(),g=c.createGain();src.buffer=b;filter.type='bandpass';filter.frequency.value=f;filter.Q.value=.65;g.gain.value=v;src.connect(filter);filter.connect(g);g.connect(c.destination);voices.add(src);src.onended=()=>{voices.delete(src);src.disconnect();filter.disconnect();g.disconnect()};src.start(t)}
- function pluck(f,d,v,at=0){const c=context();if(!c)return;const t=c.currentTime+at;[1,2,3,4].forEach((h,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f*h;g.gain.setValueAtTime(v/(h*h),t);g.gain.exponentialRampToValueAtTime(.0001,t+d/(1+i*.4));o.connect(g);g.connect(c.destination);track(o,g);o.start(t);o.stop(t+d+.01)})}
- function play(kind){if(document.hidden||document.querySelector('.session-dialog[open]'))return;const c=context();if(!c)return;if(kind==='tap'){if(c.currentTime-lastTap<.045)return;lastTap=c.currentTime;friction(.025,P.rub,.065);modal(P.hit,.045,.025);return}
-  if(kind==='paper'){friction(.13,P.rub,.18);friction(.04,P.rub*.6,.08,.09);return}
-  if(kind==='tick'){modal(P.hit*1.65,.035,.022);return}
-  if(kind==='place'){friction(.035,P.rub*.55,.13);modal(P.hit,.09,.05);return}
-  if(kind==='fail'||kind==='timeup'){modal(P.hit*.7,.16,.055);friction(.055,450,.13,.025);return}
-  if(kind==='reveal'){friction(.18,P.rub,.15);modal(P.hit,.12,.035,.1);return}
-  if(kind==='confirm'){friction(.05,P.rub,.1);modal(P.hit,.12,.045,.035);return}
-  friction(.07,P.rub*.7,.14);modal(P.hit*.8,.075,.024,.02);
- }
- function install(object,allowed,mapping){guards.push(allowed);for(const [name,kind]of Object.entries(mapping))object[name]=()=>{if(allowed())play(kind)};for(const name of ['toggle','setEnabled','setPrivate','stop','drumStop']){if(typeof object[name]!=='function')continue;const old=object[name];object[name]=function(...args){stop();return old.apply(this,args)}}}
- new MutationObserver(()=>{if(guards.some(allowed=>!allowed()))stop()}).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['class','hidden']});
- document.addEventListener('visibilitychange',()=>{if(document.hidden)stop()});window.addEventListener('pagehide',stop);
- return{play,stop,install};
+ function stop(){for(const n of voices)try{n.stop()}catch{}voices.clear()}
+ function tone(f,d,v,delay=0){const c=context();if(!c)return;const t=c.currentTime+delay;for(const [h,a]of [[1,1],[2,P[2]]]){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(f*h,t);o.frequency.exponentialRampToValueAtTime(f*h*.985,t+d);g.gain.setValueAtTime(.00001,t);g.gain.exponentialRampToValueAtTime(v*a,t+.012);g.gain.exponentialRampToValueAtTime(.00001,t+d);o.connect(g);g.connect(c.destination);voices.add(o);o.onended=()=>{voices.delete(o);o.disconnect();g.disconnect()};o.start(t);o.stop(t+d+.02)}}
+ function play(k){if(document.hidden||document.querySelector('.session-dialog[open]'))return;const c=context();if(!c)return;if(c.currentTime-last<.065)return;last=c.currentTime;const f=P[0],d=P[1];if(k==='tick')tone(f*.8,.06,.012);else if(k==='fail'||k==='timeup')tone(f*.7,d,.024);else if(k==='success'){tone(f,d,.025);tone(f*1.25,d,.019,.09)}else if(k==='reveal')tone(f*1.12,d*1.3,.024);else if(k==='confirm')tone(f,d,.026);else if(k==='place')tone(f*.9,d*.7,.021);else tone(f*.75,Math.min(d,.09),.014)}
+ function install(o,allowed,map){for(const [n,k]of Object.entries(map))o[n]=()=>{if(allowed())play(k)};for(const n of ['toggle','setEnabled','setPrivate','stop','drumStop']){if(typeof o[n]!=='function')continue;const old=o[n];o[n]=function(...a){stop();return old.apply(this,a)}}}
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)stop()});window.addEventListener('pagehide',stop);return{play,stop,install};
 })();
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>エセ芸術家 — Party Drawing Game</title>
 <meta name="description" content="スマホ1台を回して遊ぶ、お絵かき人狼。1人だけお題を知らない“エセ芸術家”を、一筆の線から見つけ出せ。">
-<meta name="theme-color" content="#0E0E0D">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#efe9d6">
+<meta name="color-scheme" content="light">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="エセ芸術家">
@@ -495,8 +481,8 @@ body.drawing-view .app>main{flex:none}
       <div class="atelier-paper-label"><span>共同制作 / 一人ひと筆</span><span id="atelierStrokeCount"></span></div><div class="drawing-stage"><canvas class="board" id="board" aria-label="共有のお絵かきキャンバス。自分の番に指またはペンで一筆描きます。"></canvas></div>
       <div class="drawing-footer">
         <div class="tools">
-          <button class="tool" id="clearBtn" onclick="clearMine()">取り消し</button>
-          <button class="tool" id="undoBtn" onclick="undoClear()">元に戻す</button>
+          <button class="tool" id="clearBtn" onclick="clearMine()" aria-label="一手戻す" title="一手戻す" data-drawing-icon><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4 3 9l5 5M3 9h10a7 7 0 0 1 0 14"/></svg></button>
+          <button class="tool" id="undoBtn" onclick="undoClear()" aria-label="やり直す" title="やり直す" data-drawing-icon><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m16 4 5 5-5 5M21 9H11a7 7 0 0 0 0 14"/></svg></button>
           <button class="btn btn-primary" id="drawDone" onclick="submitStroke()">描き終わった</button>
         </div>
         <p class="tiny" id="drawHint" style="text-align:center">描けるのは1本の線だけ。指を離すと確定します。</p>
@@ -1127,17 +1113,21 @@ function renderSetup(){
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]}) }
 function renderPass(){
-  var host=document.getElementById('artistRoster');if(!host){host=document.createElement('div');host.id='artistRoster';host.className='v5-roster';$('s-pass').prepend(host)}
-  var current=state.passTo;
-  SessionUI.mount(host,state.players.map(function(p,i){return {id:p.id,name:p.name,seat:i,disabled:state.passNext!=='role'&&p.id!==current||state.passNext==='role'&&(p.id===state.qId||state.roleSeen?.includes(p.id)),done:state.roleSeen?.includes(p.id),status:state.roleSeen?.includes(p.id)?'確認済み':p.id===current?'タップして確認':state.passNext==='role'&&p.id!==state.qId?'タップして役割を確認':'この後の番です'}}),function(id){if(state.passNext==='role'){state.roleViewer=Number(id);state.passTo=Number(id)}passReady()});
-  [...$('s-pass').children].filter(function(e){return e!==host}).forEach(function(e){e.classList.add('v5-hidden-handoff')});
-
-  $("passName").textContent=nameOf(state.passTo);var portrait=$("s-pass").querySelector(".atelier-pass-portrait");if(portrait)portrait.remove();$("passName").insertAdjacentHTML("beforebegin",GameArt.person(state.players.findIndex(function(p){return p.id===state.passTo}),"atelier-pass-portrait"));
-  $("passName").style.color=colorOf(state.passTo);
-  var r=$("passRole");
-  r.innerHTML=state.passNext==="questioner"?'<span class="pill q">出題者</span>':
-    (state.passNext==="role"?'<span class="pill">役割を確認します</span>':'<span class="pill">ラウンド '+(state.round+1)+' / '+state.rounds+'</span>');
-  pop($("passName")); SFX.pass();
+  var host=$('artistRoster');if(host)host.remove();
+  [...$('s-pass').children].forEach(e=>e.classList.remove('v5-hidden-handoff'));
+  var initial=state.passNext==='role'&&state.round===0&&state.turn===0&&!state.strokes.length&&!drawers().every(id=>state.roleSeen?.includes(id));
+  if(initial){
+    host=document.createElement('div');host.id='artistRoster';host.className='v5-roster';$('s-pass').prepend(host);
+    [...$('s-pass').children].filter(e=>e!==host).forEach(e=>e.classList.add('v5-hidden-handoff'));
+    SessionUI.mount(host,drawers().map(id=>({id,name:nameOf(id),seat:state.players.findIndex(p=>p.id===id),disabled:state.roleSeen?.includes(id),done:state.roleSeen?.includes(id)})),id=>{state.roleViewer=Number(id);state.passTo=Number(id);passReady()});return;
+  }
+  if(state.passNext==='role'&&drawers().every(id=>state.roleSeen?.includes(id)))state.passNext='draw';
+  if(state.passNext==='draw')state.passTo=curDrawer();
+  $('passName').textContent=nameOf(state.passTo);
+  var portrait=$('s-pass').querySelector('.atelier-pass-portrait');if(portrait)portrait.remove();
+  $('passName').insertAdjacentHTML('beforebegin',GameArt.person(state.players.findIndex(p=>p.id===state.passTo),'atelier-pass-portrait'));
+  $('passRole').textContent=state.passNext==='questioner'?'お題を決める人':state.passNext==='role'?'役割を確認します':'ラウンド '+(state.round+1)+' / '+state.rounds;
+  $('passOkBtn').textContent='本人です・開く';
 }
 function renderQuestioner(){
   $("qName").textContent=nameOf(state.qId);
@@ -1426,5 +1416,5 @@ html,body,#appRoot,.drawing-stage,.drawing-footer{background:var(--ui-bg)!import
 .session-cover span{font-size:13px!important;color:#45554b!important;letter-spacing:.14em!important;overflow-wrap:anywhere}
 .session-private-name{font-size:18px!important;font-weight:700!important;color:var(--ui-ink)!important;line-height:1.8!important;margin:0 0 16px!important;overflow-wrap:anywhere!important}
 @media(max-height:500px){.session-cover{min-height:110px!important;padding:8px!important}.session-cover:before{width:85px;height:85px}}
-</style></body>
+</style><style id="reported-device-repairs-v7">html body .screen,html body .stack,html body main,html body .app{animation:none!important;transform:none!important}html body .portrait-seat{display:grid!important;place-items:center!important;padding:0!important;line-height:1!important;font-size:11px!important;letter-spacing:0!important;box-sizing:border-box!important;width:21px!important;height:21px!important;bottom:0!important;right:0!important;transform:none!important;color:#fffdf0!important;background:#294a51!important;border:2px solid #fff9eb!important;border-radius:50%!important}html body .toast,html body #toast{background:#fff8e8!important;color:#244a45!important;border:1px solid #779b90!important;box-shadow:0 4px 18px #183e4320!important;line-height:1.7!important}</style><style id="reported-device-repairs-v7">#s-pass>div:before,.role-card:before{display:none!important}#s-pass>div{box-shadow:none!important;border:0!important;border-radius:14px!important}</style><style id="reported-device-repairs-v7">html{height:100%!important;overflow:hidden!important}html body{position:static!important;inset:auto!important;height:100dvh!important;overflow:hidden!important;background:#efe9d6!important}html body #appRoot{height:100dvh!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important}html body #appRoot>main{flex:1 0 auto!important;min-height:0!important}html body #s-pass{min-height:calc(100dvh - 80px)!important;height:auto!important;overflow:visible!important;justify-content:flex-start!important;padding:26px 20px 48px!important}#s-pass>.v5-roster{margin-top:0!important}#s-pass .atelier-pass-portrait{display:block!important;width:80px!important;height:98px!important;margin:20px auto!important}html body #passName{color:#24504b!important;font-size:28px!important;line-height:1.6!important}html body #resumeGate{background:#efe9d6!important;color:#294840!important}#resumeGate .resume-card{width:min(100%,470px)!important;padding:28px 22px!important;background:#fff9e9!important;border:1px solid #b1bba6!important;border-radius:14px!important;box-shadow:0 8px 30px #374c3720!important}#resumeGate h2,#resumeGate p{color:#294840!important}#resumeGate .small,#resumeGate .tiny{color:#526457!important}html body #toast{z-index:1300!important}body.drawing-view #appRoot{height:var(--usable-height,100dvh)!important;overflow:hidden!important}body.drawing-view #appRoot>main{flex:none!important}#s-draw{overflow:hidden!important}.atelier-logo,.site-logo,.wordmark-small{display:none!important}</style><style id="reported-device-repairs-v7">html body button[data-drawing-icon]{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:46px!important;height:46px!important;min-width:46px!important;min-height:46px!important;padding:10px!important;flex:none!important}html body button[data-drawing-icon] svg{display:block!important;flex:none!important;width:22px!important;height:22px!important}</style><style id="reported-device-repairs-v7">:root{--ui-font:'Zen Maru Gothic','Yu Gothic','Hiragino Kaku Gothic ProN',sans-serif!important;--serif:'Zen Maru Gothic',sans-serif!important;--sans:'Zen Maru Gothic',sans-serif!important;--mono:'Zen Maru Gothic',sans-serif!important}html body,html body *{font-family:'Zen Maru Gothic','Yu Gothic','Hiragino Kaku Gothic ProN',sans-serif!important}h1,h2,h3,.h1,.h2,.wordmark,.h-display,.h-screen{font-weight:700!important;letter-spacing:.02em!important}button,input,textarea,select{font-family:var(--ui-font)!important}html body .portrait-seat{line-height:1!important;letter-spacing:0!important}</style></body>
 </html>
