@@ -1226,7 +1226,7 @@ window.addEventListener("resize",function(){
 });
 window.addEventListener("beforeunload",function(e){
   captureDrafts();
-  if(state.phase!=="title"&&state.phase!=="setup"){ e.preventDefault(); e.returnValue="" }
+  if(!["title","setup","result"].includes(state.phase)){ e.preventDefault(); e.returnValue="" }
 });
 document.addEventListener("visibilitychange",function(){
   if(document.hidden){ captureDrafts();cancelDrawing(); if(state.phase==="draw"){paint($("board"));syncDrawTools()} }
@@ -1275,5 +1275,65 @@ function syncViewport(){
 if(window.visualViewport)window.visualViewport.addEventListener("resize",syncViewport);
 syncViewport();bootGame();
 </script>
+
+<style>
+html.reload-protected,html.reload-protected body{overscroll-behavior-y:none}
+</style>
+<script>
+/* Prevent accidental refresh during play without disabling normal scrolling or zoom. */
+(()=>{
+ const playing=()=>!!document.querySelector(".screen.active:not(#s-title):not(#s-setup):not(#s-result)");
+ const sync=()=>document.documentElement.classList.toggle('reload-protected',playing());
+ new MutationObserver(sync).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','hidden']});
+ sync();
+ window.addEventListener('keydown',e=>{
+  if(playing()&&(e.key==='F5'||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='r')))e.preventDefault();
+ });
+ let touch=null;
+ document.addEventListener('touchstart',e=>{
+  touch=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;
+ },{passive:true});
+ document.addEventListener('touchmove',e=>{
+  if(!playing()||!touch||e.touches.length!==1)return;
+  const t=e.touches[0],dy=t.clientY-touch.y,dx=t.clientX-touch.x;
+  touch={x:t.clientX,y:t.clientY};
+  if(dy<=0||dy<=Math.abs(dx))return;
+  const canScrollUp=e.composedPath().some(el=>el instanceof Element&&
+   el.scrollHeight>el.clientHeight+1&&el.scrollTop>0&&
+   /^(auto|scroll|overlay)$/.test(getComputedStyle(el).overflowY));
+  if(!canScrollUp&&(document.scrollingElement?.scrollTop||0)<=0&&e.cancelable)e.preventDefault();
+ },{passive:false});
+ const reset=()=>{touch=null};
+ document.addEventListener('touchend',reset,{passive:true});
+ document.addEventListener('touchcancel',reset,{passive:true});
+})();
+</script>
+<style id="tabletop-edition">
+:root{--tabletop-back:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNjAwIiB2aWV3Qm94PSIwIDAgNDAwIDYwMCI+PGRlZnM+PHBhdHRlcm4gaWQ9ImgiIHdpZHRoPSIxNCIgaGVpZ2h0PSIxNCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMTRMMTQgME0tNyA3TDctN003IDIxTDIxIDciIHN0cm9rZT0iIzIyNTg2YyIgc3Ryb2tlLXdpZHRoPSIuNDUiIG9wYWNpdHk9Ii4xNyIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSI2MDAiIHJ4PSIxNiIgZmlsbD0iI2VlZThkOCIvPjxyZWN0IHg9IjEwIiB5PSIxMCIgd2lkdGg9IjM4MCIgaGVpZ2h0PSI1ODAiIHJ4PSIxMSIgZmlsbD0idXJsKCNoKSIgc3Ryb2tlPSIjMjI1ODZjIiBzdHJva2Utd2lkdGg9IjEuNSIvPjxyZWN0IHg9IjIyIiB5PSIyMiIgd2lkdGg9IjM1NiIgaGVpZ2h0PSI1NTYiIHJ4PSIzIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMjU4NmMiIHN0cm9rZS13aWR0aD0iLjYiLz48cGF0aCBkPSJNMzQgNzNoMzMyTTM0IDUxOGgzMzIiIHN0cm9rZT0iIzIyNTg2YyIgb3BhY2l0eT0iLjYiLz48ZyBmaWxsPSIjMjI1ODZjIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iR2VvcmdpYSxzZXJpZiI+PHRleHQgeD0iMjAwIiB5PSI1OCIgZm9udC1zaXplPSIxMSIgbGV0dGVyLXNwYWNpbmc9IjMiPlNFQ1JFVCBBUlRJU1QgU09DSUVUWTwvdGV4dD48dGV4dCB4PSIyMDAiIHk9IjEzMiIgZm9udC1zaXplPSIyNiIgbGV0dGVyLXNwYWNpbmc9IjQiIGZvbnQtd2VpZ2h0PSJib2xkIj5BVEVMSUVSPC90ZXh0Pjx0ZXh0IHg9IjIwMCIgeT0iNDY3IiBmb250LXNpemU9IjEwIiBsZXR0ZXItc3BhY2luZz0iMiI+T05FIExJTkUg4oCiIE9ORSBTRUNSRVQ8L3RleHQ+PHRleHQgeD0iMjAwIiB5PSI1NTEiIGZvbnQtc2l6ZT0iOSIgbGV0dGVyLXNwYWNpbmc9IjQiPlRBQkxFVE9QIENPTExFQ1RJT048L3RleHQ+PC9nPjxnIGNvbG9yPSIjMjI1ODZjIj48ZyBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciI+PHJlY3QgeD0iOTQiIHk9IjIwNSIgd2lkdGg9IjIxMiIgaGVpZ2h0PSIxOTAiIHN0cm9rZS13aWR0aD0iMSIvPjxwYXRoIGQ9Ik0xMDUgMjE2aDE5MHYxNjhIMTA1eiIvPjxwYXRoIGQ9Ik0xMzkgMzUxcS03LTg1IDU1LTEwNCA0Mi0xMSA2MSAxOS0zOS0yNS02MCAyOS0xOSA1MSA0NSA1NCIgc3Ryb2tlPSIjYmI2MTQ5IiBzdHJva2Utd2lkdGg9IjE5IiBvcGFjaXR5PSIuNzUiLz48cGF0aCBkPSJNMTM0IDMyNXE3My05MSAxMjggNCIgc3Ryb2tlPSIjYmQ5YzNjIiBzdHJva2Utd2lkdGg9IjE0IiBvcGFjaXR5PSIuNyIvPjxwYXRoIGQ9Ik0xNzAgMzY4bDcyLTE1MiAxNCA2LTcyIDE1Mi0xOSAxNXoiIGZpbGw9IiMyOTRmNjUiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0xNjggMzgybC0zIDcgMTAtNiIvPjxjaXJjbGUgY3g9IjEyOCIgY3k9IjI0MCIgcj0iMTIiIGZpbGw9IiNjODllNDciIHN0cm9rZT0ibm9uZSIvPjxwYXRoIGQ9Ik04MyAxOTNoMjJtLTExLTExdjIyTTI5NSA0MDVoMjJtLTExLTExdjIyIi8+PC9nPjxnIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjEiPjwvZz48L2c+PGcgZmlsbD0iIzIyNTg2YyI+PHBhdGggZD0iTTM1IDM0aDIydjJIMzd2MjBoLTJ6TTM2NSAzNGgtMjJ2MmgyMHYyMGgyek0zNSA1NjZoMjJ2LTJIMzd2LTIwaC0yek0zNjUgNTY2aC0yMnYtMmgyMHYtMjBoMnoiLz48L2c+PC9zdmc+");--tabletop-emblem:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjcwIDE3MCAyNjAgMjYwIj48ZyBjb2xvcj0iIzIyNTg2YyI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiPjxyZWN0IHg9Ijk0IiB5PSIyMDUiIHdpZHRoPSIyMTIiIGhlaWdodD0iMTkwIiBzdHJva2Utd2lkdGg9IjEiLz48cGF0aCBkPSJNMTA1IDIxNmgxOTB2MTY4SDEwNXoiLz48cGF0aCBkPSJNMTM5IDM1MXEtNy04NSA1NS0xMDQgNDItMTEgNjEgMTktMzktMjUtNjAgMjktMTkgNTEgNDUgNTQiIHN0cm9rZT0iI2JiNjE0OSIgc3Ryb2tlLXdpZHRoPSIxOSIgb3BhY2l0eT0iLjc1Ii8+PHBhdGggZD0iTTEzNCAzMjVxNzMtOTEgMTI4IDQiIHN0cm9rZT0iI2JkOWMzYyIgc3Ryb2tlLXdpZHRoPSIxNCIgb3BhY2l0eT0iLjciLz48cGF0aCBkPSJNMTcwIDM2OGw3Mi0xNTIgMTQgNi03MiAxNTItMTkgMTV6IiBmaWxsPSIjMjk0ZjY1IiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBkPSJNMTY4IDM4MmwtMyA3IDEwLTYiLz48Y2lyY2xlIGN4PSIxMjgiIGN5PSIyNDAiIHI9IjEyIiBmaWxsPSIjYzg5ZTQ3IiBzdHJva2U9Im5vbmUiLz48cGF0aCBkPSJNODMgMTkzaDIybS0xMS0xMXYyMk0yOTUgNDA1aDIybS0xMS0xMXYyMiIvPjwvZz48L2c+PC9zdmc+");}
+
+/* An atelier kit: private identity cards, gallery slips and the shared drawing. */
+:root{color-scheme:light;--bg:#eeeade;--bg-soft:#e5e1d5;--surface:#f8f5eb;--surface-2:#e9e4d7;--raised:#dfdacb;--line:#39576524;--line-2:#39576545;--line-3:#39576570;--text:#263f4d;--muted:#586c73;--faint:#697b7a;--blue:#2b647b;--blue-deep:#1f4f66;--gold:#9a7537;--green:#47745d;--red:#a54b3d;--violet:#87627d;--shadow-1:0 2px 0 #6c796522;--shadow-2:0 4px 0 #6c796522;--shadow-3:0 12px 30px #384e4320;--inset:inset 0 1px #fff9}
+html,body{background:var(--bg)}body:before{background:radial-gradient(ellipse at top,#dfc9a63b,transparent 60%)}
+.topbar{background:#eeeadef5;border-bottom:1px solid #49646b35}.icon-btn{border-radius:4px}
+.card{border-radius:3px;background:#faf7ed;border:1px solid #a9b3a4;box-shadow:0 3px 0 #96a18a33;padding:18px}
+.card-label{font-family:Georgia,serif;letter-spacing:.16em;color:#516e70;border-bottom:1px solid #9eafa155;padding-bottom:9px}
+.btn{border-radius:5px;box-shadow:0 3px 0 #183d4933}.btn-primary{background:#2b647b;color:#fff9e9;border-color:#254f60}
+.btn-ghost{color:#365b68;background:#eee8da}.btn:disabled{background:#d9dece;color:#758379}
+.field{background:#fffdf5!important;color:#253f4b!important;border-color:#b6bda9!important;border-radius:3px}
+#s-pass>div:before{content:'';display:block;width:96px;height:144px;background:var(--tabletop-back) center/contain no-repeat;margin:0 auto 16px;filter:drop-shadow(0 4px 2px #304c4330)}
+#s-role>div{max-width:420px;width:100%;margin:0 auto;padding:25px 22px;background:#faf7ec;border:1px solid #b1bba6;border-radius:4px;box-shadow:0 4px 0 #8a9a7e44;position:relative}
+#s-role>div:before{content:'';display:block;height:62px;background:var(--tabletop-emblem) center/78px 78px no-repeat;opacity:.8;margin-bottom:8px}
+#roleFor{border-bottom:1px solid #9aaf9a77;padding-bottom:8px;color:#46666b}#roleName{font-family:Georgia,'Yu Mincho',serif;color:#274f60;letter-spacing:.12em;font-size:29px}
+#roleTopic{background:#e9e8d8;padding:14px 10px;border:1px dashed #8d9e85;color:#2d4b57}
+#verdict{border-radius:3px;box-shadow:0 4px 0 #8b9e7d44;background:#faf6e7;color:#2a515c}
+#tally{font-variant-numeric:tabular-nums}.row,.cand{border-radius:4px}.cand.on{background:#2b647b;color:#fff9e9}
+#s-result .card{background:repeating-linear-gradient(0deg,transparent 0 31px,#3e665114 31px 32px),#faf7eb}
+.pill{border-radius:3px}.mark{filter:none}.hairline{background:#9eab9944}.tool{background:#faf7ec;color:#2d5261;border-color:#96aaa1;border-radius:5px}
+body.drawing-view .topbar{background:var(--bg)}#s-draw{background:var(--bg)}.drawing-stage{background:#e0dfcf;border-radius:3px}
+@media(max-height:520px){#s-pass>div:before{display:none}#s-role>div{padding:15px}#s-role>div:before{display:none}}
+
+.topic-word{color:#284f60}.alert.info{color:#365f70;background:#e0e8dd}.alert.err{color:#934c3e;background:#efdfd2}.alert:not(.info):not(.err){color:#806331;background:#eee2c8}.rank.s{color:#687b77}
+#s-role>div{min-height:470px;display:flex;flex-direction:column;justify-content:center}#s-role #roleTopic{flex:none}@media(max-height:520px){#s-role>div{min-height:0}}
+</style>
 </body>
 </html>
