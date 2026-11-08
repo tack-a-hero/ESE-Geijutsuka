@@ -654,7 +654,7 @@ function syncSoundUI(){
 
 /* ============================ state ============================ */
 function blank(){
-  var ps=[]; for(var i=0;i<5;i++) ps.push({id:i,name:"プレイヤー"+(i+1)});
+  var ps=[]; for(var i=0;i<5;i++) ps.push({id:i,name:""});
   return {phase:"title",players:ps,nextId:5,rounds:2,gameCount:0,qIndex:0,paperRatio:null,
     qId:null,fakeId:null,topic:"",orders:[],round:0,turn:0,strokes:[],trash:null,
     votes:{},caught:false,tie:false,guessCorrect:null,guessText:"",
@@ -793,7 +793,7 @@ function norm(s){ return (s||"").replace(/[\s　]+/g,"").toLowerCase() }
 function toSetup(){ go(function(){ state.phase="setup"; }) }
 function addPlayer(){
   if(state.players.length>=MAXP){ SFX.error(); toast("最大"+MAXP+"人までです"); return }
-  state.players.push({id:state.nextId++,name:"プレイヤー"+(state.players.length+1)});
+  state.players.push({id:state.nextId++,name:""});
   SFX.select(); renderSetup();
 }
 function removePlayer(id){
@@ -803,16 +803,15 @@ function removePlayer(id){
   state.qIndex=nextQ===id?state.qIndex%state.players.length:state.players.findIndex(function(p){return p.id===nextQ});
   SFX.tap(); renderSetup();
 }
-function setName(id,v){ var p=P(id); if(p) p.name=v.slice(0,12); persistGame() }
+function setName(id,v){ var p=P(id); if(p){p.name=v.slice(0,12);p.autoName=false;} persistGame() }
 function setRounds(n){ state.rounds=n; SFX.select(); renderSetup() }
 function startGame(){
-  var names=state.players.map(function(p){return (p.name||"").trim()});
-  if(names.some(function(n){return !n})){ SFX.error(); toast("名前が空のプレイヤーがいます"); return }
+  var names=state.players.map(function(p,i){return (!p.autoName&&p.name||"").trim()||"プレイヤー"+(i+1)});
   var seen=Object.create(null);
   for(var i=0;i<names.length;i++){ var k=norm(names[i]); if(seen[k]){ SFX.error(); toast("同じ名前のプレイヤーがいます"); return } seen[k]=1 }
   if(state.players.length<MINP){ SFX.error(); toast("最低"+MINP+"人必要です"); return }
   go(function(){
-    state.players.forEach(function(p){p.name=p.name.trim()});
+    state.players.forEach(function(p,i){p.autoName=p.autoName||!(p.name||"").trim();p.name=names[i]});
     state.qIndex=state.qIndex%state.players.length;
     state.qId=state.players[state.qIndex].id;
     var ds=drawers();
@@ -1115,7 +1114,7 @@ function renderSetup(){
   state.players.forEach(function(p,i){
     var row=document.createElement("div"); row.className="p-row";
     var dot=document.createElement("span"); dot.className="dot"; dot.style.background="transparent";dot.innerHTML=GameArt.button(i);
-    var inp=document.createElement("input"); inp.className="field"; inp.maxLength=12; inp.value=p.name;
+    var inp=document.createElement("input"); inp.className="field"; inp.maxLength=12; inp.value=p.autoName?"":p.name;
     inp.placeholder="プレイヤー"+(i+1); inp.setAttribute("aria-label","プレイヤー"+(i+1)+"の名前");
     inp.addEventListener("input",function(){setName(p.id,inp.value)});
     var x=document.createElement("button"); x.className="x-btn"; x.textContent="×";
